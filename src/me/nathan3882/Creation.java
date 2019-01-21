@@ -11,16 +11,18 @@ public class Creation {
     private String fileLoc;
     private boolean abs;
     private String extension;
+    private int chunk = 50;
 
-    public Creation(String fileLoc, int pageCount, String extension) {
+    public Creation(String fileLoc, int pageCount, String extension, int chunk) {
         this.fileLoc = fileLoc;
         this.pageCount = pageCount;
         this.abs = fileLoc.equals("{abs}");
         this.extension = extension;
+        this.chunk = chunk;
     }
 
     public Creation(String fileLoc, int pageCount) {
-        this(fileLoc, pageCount, ".docx"); //Default to word doc format
+        this(fileLoc, pageCount, ".docx", 50); //Default to word doc format
     }
 
     public int getPageCount() {
@@ -50,11 +52,14 @@ public class Creation {
         if (fileLoc.isDirectory() || isAbs()) {
             //interval files to create = pageCount / 50;
             int chunk = getChunk();
-            int regFilesToCreate = getPageCount() / chunk;
             int upperBound = -1;
+
+            int filesToCreate = getPageCount() / chunk; //5
+
             int leftOver = getPageCount() % chunk;
-//            regFilesToCreate + "with" + leftOver + "left over"
-            for (int done = 0; done < regFilesToCreate; done++) {
+
+//            filesToCreate + "with" + leftOver + "left over"
+            for (int done = 0; done < filesToCreate; done++) {
                 int lowerBound = done * chunk;
                 upperBound = lowerBound + chunk;
                 createNotesFile(lowerBound, upperBound);
@@ -85,7 +90,7 @@ public class Creation {
     }
 
     private int getChunk() {
-        return 50; //Lots of fifty ie a file "0-50" and "100-150"
+        return chunk; //Lots of fifty ie a file "0-50" and "100-150"
     }
 
     public String getFileLoc() {
