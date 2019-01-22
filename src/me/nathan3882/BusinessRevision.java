@@ -45,7 +45,7 @@ public class BusinessRevision {
                     } catch (NumberFormatException exception) {
                         exception.printStackTrace();
                         System.err.println("That is not a valid page count");
-                        return;
+                        continue;
                     }
 
                     Creation creation = new Creation(get().getFileLoc(), pageCount, get().getExtension(), get().getChunk());
