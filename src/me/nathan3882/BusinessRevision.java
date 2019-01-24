@@ -1,6 +1,9 @@
 package me.nathan3882;
 
-import java.util.Scanner;
+import java.io.File;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class BusinessRevision {
 
@@ -9,9 +12,22 @@ public class BusinessRevision {
     private static String fileLoc;
     private static BusinessRevision businessRevision = new BusinessRevision();
     private String extension;
-    private int chunk;
+    private int chunk = 50; //Default to fifty
+
+    private List<Map.Entry<Integer, Integer>> currentFilePages = new LinkedList<>();
 
     public static void main(String[] args) {
+        Map<Integer, Integer> currentFiles = new HashMap<>();
+
+        List<NotesFile> toAct = new ArrayList<>();
+        for (File file : new File(".").listFiles()) {
+            if (get().isValidPagesFile(file)) {
+                NotesFile notesFile = new NotesFile(file, true);
+                notesFile.upperBoundTo(69);
+                toAct.add(notesFile);
+                break;
+            }
+        }
 
         while (!done) {
             System.out.println("Please enter info regarding stage : " + get().getStage());
@@ -32,7 +48,7 @@ public class BusinessRevision {
                 } else if (stage == Stage.CHUNK) {
                     try {
                         get().setChunk(Integer.parseInt(entered));
-                    }catch(NumberFormatException exception) {
+                    } catch (NumberFormatException exception) {
                         System.out.println("That's not a valid number");
                         continue;
                     }
@@ -65,6 +81,14 @@ public class BusinessRevision {
         return Stage.FILE;
     }
 
+    public boolean isValidPagesFile(File file) {
+        String name = file.getName();
+        String nameWithoutExt = name.split("\\.")[0];
+        Pattern regex = Creation.getFileNameRegex();
+        Matcher matcher = regex.matcher(nameWithoutExt);
+        return matcher.find();
+    }
+
     public String getExtension() {
         return extension;
     }
@@ -77,16 +101,16 @@ public class BusinessRevision {
         return fileLoc;
     }
 
+    private void setFileLoc(String string) {
+        fileLoc = string;
+    }
+
     public int getChunk() {
         return chunk;
     }
 
     public void setChunk(int chunk) {
         this.chunk = chunk;
-    }
-
-    private void setFileLoc(String string) {
-        fileLoc = string;
     }
 
     private Stage getStage() {

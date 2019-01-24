@@ -2,6 +2,7 @@ package me.nathan3882;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 public class Creation {
 
@@ -23,6 +24,10 @@ public class Creation {
 
     public Creation(String fileLoc, int pageCount) {
         this(fileLoc, pageCount, ".docx", 50); //Default to word doc format
+    }
+
+    public static Pattern getFileNameRegex() {
+        return Pattern.compile("(p|P)\\d+\\s(to)\\s(p|P)\\d");
     }
 
     public int getPageCount() {
