@@ -23,7 +23,7 @@ public class BusinessRevision {
         for (File file : new File(".").listFiles()) {
             if (get().isValidPagesFile(file)) {
                 NotesFile notesFile = new NotesFile(file, true);
-                notesFile.upperBoundTo(69);
+                notesFile.upperBoundTo(145, true);
                 toAct.add(notesFile);
                 break;
             }

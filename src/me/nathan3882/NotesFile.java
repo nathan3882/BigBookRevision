@@ -1,20 +1,23 @@
 package me.nathan3882;
 
 import java.io.File;
-import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Pattern;
 
-public class NotesFile {
+public class NotesFile implements Comparable<NotesFile> {
 
     private static Pattern pNumRegex = Pattern.compile("[pP](\\d+)");
     private File file;
     private String fileName;
-    private List<NotesFile> otherNotesFiles = new ArrayList<>();
+    private LinkedList<NotesFile> otherSortedNotesFiles = new LinkedList<>();
     private int lowerBound = -1;
     private int upperBound = -1;
+    private boolean sortedByLower;
 
     public NotesFile(File file, boolean trackOtherNotesFiles) {
+
         this.file = file;
         this.fileName = file.getName();
         this.lowerBound = getFileLowerBound();
@@ -22,14 +25,24 @@ public class NotesFile {
         if (trackOtherNotesFiles) {
             for (File otherFile : new File(".").listFiles()) {
                 if (BusinessRevision.get().isValidPagesFile(otherFile)) {
-                    otherNotesFiles.add(new NotesFile(otherFile, false));
+                    otherSortedNotesFiles.add(new NotesFile(otherFile, false));
                 }
             }
         }
+        sort(false);
     }
 
     public static NotesFile from(File file, boolean trackOtherNotesFiles) {
         return new NotesFile(file, trackOtherNotesFiles);
+    }
+
+    private void sort(boolean sortByLower) {
+        this.sortedByLower = sortByLower;
+        Collections.sort(otherSortedNotesFiles);
+    }
+
+    public void setSortedByLower(boolean sortedByLower) {
+        this.sortedByLower = sortedByLower;
     }
 
     private int getPBound(boolean upperBound) {
@@ -88,33 +101,77 @@ public class NotesFile {
         return fileName;
     }
 
-    public List<NotesFile> getOtherNotesFiles() {
-        return otherNotesFiles;
+    public List<NotesFile> getOtherSortedNotesFiles() {
+        return otherSortedNotesFiles;
     }
 
-    public void lowerBoundTo(int newLowerBound) {
+    public void lowerBoundTo(int newLowerBound, boolean checkOtherFiles) {
         int lower = getFileLowerBound();
-        if (lower == newLowerBound || lower == upperBound) {
+        if (lower == newLowerBound) {
             System.err.println("Conflict occured");
             return;
         }
+        File renamed = new File(getFileName().replace("p" + getFileLowerBound(), "p" + newLowerBound));
+        getFile().renameTo(renamed);
+        if (checkOtherFiles) {
 
+        }
         //Update this.lowerBound
     }
 
-    public void upperBoundTo(int newUpperBound) {
-        int upper = getFileUpperBound();
-        if (upper == newUpperBound || upper == upperBound) {
+    public void upperBoundTo(int newUpperBound, boolean checkOtherFiles) {
+        if (getFileUpperBound() == newUpperBound) {
             System.err.println("Conflict occured");
             return;
         }
         File renamed = new File(getFileName().replace("p" + getFileUpperBound(), "p" + newUpperBound));
-        getFile().renameTo(renamed);
+        this.file.renameTo(renamed);
+        this.fileName = file.getName();
+        this.upperBound = newUpperBound;
 
+        if (checkOtherFiles) {
+            sort(false); //Assure that the other notes files are sorted by the upper bound
+            boolean onOrPastThisOne = false;
+            int size = otherSortedNotesFiles.size();
+            for (int i = 0; i < size; i++) {
+                NotesFile current = otherSortedNotesFiles.get(i);
+                int nextIndex = i + 1;
+                NotesFile next = nextIndex >= size ? null : otherSortedNotesFiles.get(i + 1);
+                int currentUpper;
+                if (current.equals(this)) {
+                    onOrPastThisOne = true;
+                    currentUpper = newUpperBound;  //Same file as the one being changed, make upper the new one
+                } else {
+                    currentUpper = current.getFileUpperBound(); //Not same file, make upper the phyiscal file's upper
+                }
+                if (onOrPastThisOne && next != null) { //next != null prevents un required checks for being at the highest upperBound that has been set
+                    int nextLower = next.getFileLowerBound();
+                    if (currentUpper > nextLower) {
+                        next.lowerBoundTo(currentUpper + 1, false); //+1 prevents multiple covering same page
+                    }
+                }
+            }
+        }
         //Update this.upperBound
     }
-
     public File getFile() {
         return file;
+    }
+
+    public boolean equals(NotesFile anotherNotesFile) {
+        return this.getFileName().equals(anotherNotesFile.getFileName());
+    }
+
+    @Override
+    public int compareTo(NotesFile o) {
+        if (sortedByLower()) {
+            return lowerBound - o.getFileLowerBound();
+        } else { //comparing uppers
+            return upperBound - o.getFileUpperBound();
+        }
+    }
+
+    private boolean sortedByLower() {
+        return this.sortedByLower;
     }
 }
