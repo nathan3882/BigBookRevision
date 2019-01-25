@@ -1,7 +1,9 @@
 package me.nathan3882;
 
 import java.io.File;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -9,34 +11,55 @@ public class BusinessRevision {
 
     private static Stage stage = getFirstStage();
     private static boolean done = false;
-    private static String fileLoc;
     private static BusinessRevision businessRevision = new BusinessRevision();
+    private static Pattern changeBoundPattern = Pattern.compile("change (p|P)\\d+\\s(to)\\s(p|P)\\d");
+    private String fileLoc;
     private String extension;
     private int chunk = 50; //Default to fifty
-
-    private List<Map.Entry<Integer, Integer>> currentFilePages = new LinkedList<>();
+    private List<NotesFile> allFiles = new ArrayList<>();
 
     public static void main(String[] args) {
-        Map<Integer, Integer> currentFiles = new HashMap<>();
-
-        List<NotesFile> toAct = new ArrayList<>();
         for (File file : new File(".").listFiles()) {
             if (get().isValidPagesFile(file)) {
-                NotesFile notesFile = new NotesFile(file, true);
-                notesFile.upperBoundTo(145, true);
-                toAct.add(notesFile);
-                break;
+                get().getAllFiles().add(new NotesFile(file, true)); //true for second arg will allow page modifications
             }
         }
 
         while (!done) {
-            System.out.println("Please enter info regarding stage : " + get().getStage());
+            System.out.println("Please enter info regarding stage : " + get().getStage() + " or alternatively type 'change px to px' to safely change an upper/lower bound!");
             if (get().getStage() == Stage.FILE) {
                 System.out.println("Enter {abs} for directory jar is in");
             }
             Scanner scanner = new Scanner(System.in);
             if (scanner.hasNext()) {
-                String entered = scanner.next();
+                String entered = scanner.nextLine();
+                System.out.println("ne = " + entered);
+                if (isChangeFormat(entered)) {
+                    int aBound = NotesFile.getBounds(entered, false);
+                    int toThisBound = NotesFile.getBounds(entered, true);
+                    boolean modLower = false;
+                    NotesFile toMod = null;
+                    for (NotesFile aFile : get().getAllFiles()) {
+                        int lower = aFile.getFileLowerBound();
+                        int upper = aFile.getFileUpperBound();
+                        if (lower == aBound) { //change lower to "toThisBound"
+                            modLower = true;
+                        } else if (upper == aBound) { //change upper to "toThisBound"
+                            modLower = false;
+                        } else {
+                            continue; //Wont excecute the code below if not valid NotesFile
+                        }
+                        toMod = aFile;
+                        break;
+                    }
+                    if (toMod == null) break;
+                    if (modLower) {
+                        toMod.lowerBoundTo(toThisBound, true);
+                    }else{
+                        toMod.upperBoundTo(toThisBound, true);
+                    }
+                    continue;
+                }
                 Stage stage = get().getStage();
                 if (stage == Stage.FILE) {
                     get().setFileLoc(entered.trim());
@@ -73,12 +96,20 @@ public class BusinessRevision {
         }
     }
 
+    private static boolean isChangeFormat(String entered) {
+        return changeBoundPattern.matcher(entered).find();
+    }
+
     public static BusinessRevision get() {
         return businessRevision;
     }
 
     private static Stage getFirstStage() {
         return Stage.FILE;
+    }
+
+    private List<NotesFile> getAllFiles() {
+        return allFiles;
     }
 
     public boolean isValidPagesFile(File file) {

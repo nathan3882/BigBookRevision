@@ -27,7 +27,7 @@ public class Creation {
     }
 
     public static Pattern getFileNameRegex() {
-        return Pattern.compile("(p|P)\\d+\\s(to)\\s(p|P)\\d");
+        return Pattern.compile("(?i)(p|P)\\d+\\s(to)\\s(p|P)\\d");
     }
 
     public int getPageCount() {

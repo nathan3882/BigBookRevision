@@ -29,11 +29,47 @@ public class NotesFile implements Comparable<NotesFile> {
                 }
             }
         }
-        sort(false);
+        sort(true);
     }
 
     public static NotesFile from(File file, boolean trackOtherNotesFiles) {
         return new NotesFile(file, trackOtherNotesFiles);
+    }
+
+    private static int getPBound(String fileName, boolean upperBound) {
+        char[] chars = fileName.toCharArray();
+        String pXNumbers = "  ";
+        boolean foundLower = false;
+        int bound = -1;
+        for (int i = 0; i < chars.length; i++) {
+            String charAt = String.valueOf(chars[i]);
+            pXNumbers = pXNumbers.substring(1) + charAt;
+            if (pNumRegex.matcher(pXNumbers).find()) { //found p with a number next to it
+                if (upperBound && !foundLower) {
+                    foundLower = true;
+                } else {
+                    bound = i;
+                    break;
+                }
+            }
+        }
+        return bound;
+    }
+
+    public static int getBounds(String fileName, boolean upperBound) {
+        String restAfterP = fileName.split("\\.")[0].substring(getPBound(fileName, upperBound));
+        String digits = restAfterP.split("\\s")[0];
+        return Integer.parseInt(digits);
+    }
+
+    private static void changeFileInfo(NotesFile notesFile, File renamed, String name, int bound, boolean upper) {
+        notesFile.file = renamed;
+        notesFile.fileName = name;
+        if (upper) {
+            notesFile.upperBound = bound;
+        } else {
+            notesFile.lowerBound = bound;
+        }
     }
 
     private void sort(boolean sortByLower) {
@@ -45,35 +81,12 @@ public class NotesFile implements Comparable<NotesFile> {
         this.sortedByLower = sortedByLower;
     }
 
-    private int getPBound(boolean upperBound) {
-        char[] chars = fileName.toCharArray();
-        String pXNumbers = "  "; //Support for 1-9999 pages
-        boolean foundLower = false;
-        int bound = -1;
-        for (int i = 0; i < chars.length; i++) {
-            String charAt = String.valueOf(chars[i]);
-            pXNumbers = pXNumbers.substring(1) + charAt;
-            if (pNumRegex.matcher(pXNumbers).find()) { //found p with a number next to it
-                if (upperBound) {
-                    if (!foundLower) {
-                        foundLower = true;
-                    } else {
-                        bound = i;
-                        break;
-                    }
-                } else {
-                    bound = i;
-                    break;
-                }
-            }
-        }
-        return bound;
+    public int getPBound(boolean upperBound) {
+        return getPBound(getFileName(), upperBound);
     }
 
     private int getBounds(boolean upperBound) {
-        String restAfterP = fileName.split("\\.")[0].substring(getPBound(upperBound));
-        String digits = restAfterP.split("\\s")[0];
-        return Integer.parseInt(digits);
+        return getBounds(fileName, upperBound);
     }
 
     public int getFileLowerBound() {
@@ -90,13 +103,6 @@ public class NotesFile implements Comparable<NotesFile> {
         return this.upperBound;
     }
 
-    /*
-    Actually takes action, does upper bounds etcetera
-     */
-    public void act() {
-
-    }
-
     public String getFileName() {
         return fileName;
     }
@@ -108,14 +114,43 @@ public class NotesFile implements Comparable<NotesFile> {
     public void lowerBoundTo(int newLowerBound, boolean checkOtherFiles) {
         int lower = getFileLowerBound();
         if (lower == newLowerBound) {
-            System.err.println("Conflict occured");
+            System.err.println("Conflict occured when setting lower bounds (" + lower + " to " + newLowerBound + ")");
             return;
         }
         File renamed = new File(getFileName().replace("p" + getFileLowerBound(), "p" + newLowerBound));
-        getFile().renameTo(renamed);
+        updateSorted(renamed, newLowerBound, false);
+        this.file.renameTo(renamed);
+
+        changeFileInfo(this, renamed, renamed.getName(), newLowerBound, false);
+
         if (checkOtherFiles) {
+            sort(false);
+            boolean onOrPastThisOne = false;
+            int size = otherSortedNotesFiles.size();
+            int completed = 1;
+            for (int i = size - 1; i >= 0; i--) {
+                NotesFile current = otherSortedNotesFiles.get(i);
+                int oneBelowCurrentIndex = i - 1;
+                NotesFile next = oneBelowCurrentIndex < 0 ? null : otherSortedNotesFiles.get(oneBelowCurrentIndex);
+                int currentLower = newLowerBound;
+                if (current.equals(this)) {
+                    onOrPastThisOne = true;
+                }
+                if (onOrPastThisOne && next != null) { //next != null prevents un required checks for being at the highest upperBound that has been set
+                    int nextUpper = next.getFileUpperBound();
+                    if (currentLower < nextUpper) {
+                        int nextNewUpper = currentLower - (completed); /*negate the deduction + add it too*/
+                        System.out.println("change next to " + nextNewUpper + " because " + currentLower + " < " + nextUpper);
+                        next.upperBoundTo(nextNewUpper, true); //+x prevents multiple covering same page
+                        completed++;
+                    }else{
+                        System.out.println(currentLower + " > " + nextUpper);
+                    }
+                }
+            }
 
         }
+        doReverseCheck();
         //Update this.lowerBound
     }
 
@@ -125,38 +160,61 @@ public class NotesFile implements Comparable<NotesFile> {
             return;
         }
         File renamed = new File(getFileName().replace("p" + getFileUpperBound(), "p" + newUpperBound));
+        //update other sorted to this updated obj
+
+        updateSorted(renamed, newUpperBound, true);
         this.file.renameTo(renamed);
-        this.fileName = file.getName();
-        this.upperBound = newUpperBound;
+
+        changeFileInfo(this, renamed, renamed.getName(), newUpperBound, true);
 
         if (checkOtherFiles) {
-            sort(false); //Assure that the other notes files are sorted by the upper bound
+            int completed = 1;
+            sort(true); //Assure that the other notes files are sorted by the lower bound so can do lower bound checks
             boolean onOrPastThisOne = false;
             int size = otherSortedNotesFiles.size();
             for (int i = 0; i < size; i++) {
                 NotesFile current = otherSortedNotesFiles.get(i);
                 int nextIndex = i + 1;
-                NotesFile next = nextIndex >= size ? null : otherSortedNotesFiles.get(i + 1);
-                int currentUpper;
+                NotesFile next = nextIndex >= size ? null : otherSortedNotesFiles.get(nextIndex);
+                int currentUpper = newUpperBound;
                 if (current.equals(this)) {
                     onOrPastThisOne = true;
-                    currentUpper = newUpperBound;  //Same file as the one being changed, make upper the new one
-                } else {
-                    currentUpper = current.getFileUpperBound(); //Not same file, make upper the phyiscal file's upper
                 }
                 if (onOrPastThisOne && next != null) { //next != null prevents un required checks for being at the highest upperBound that has been set
                     int nextLower = next.getFileLowerBound();
                     if (currentUpper > nextLower) {
-                        next.lowerBoundTo(currentUpper + 1, false); //+1 prevents multiple covering same page
+                        next.lowerBoundTo(currentUpper + completed, true); //+x prevents multiple covering same page
+                        completed++;
                     }
                 }
             }
         }
+        doReverseCheck();
         //Update this.upperBound
     }
+
+    private void doReverseCheck() {
+        int lower = getFileLowerBound();
+        if (lower > getFileUpperBound()) {
+            upperBoundTo(lower, false);
+        }
+    }
+
+    private void updateSorted(File renamed, int bound, boolean upper) {
+        for (int i = 0; i < new LinkedList<>(otherSortedNotesFiles).size(); i++) {
+            NotesFile file = otherSortedNotesFiles.get(i);
+            if (file.equals(this)) { //equals the old version of this
+                changeFileInfo(file, renamed, renamed.getName(), bound, upper); //update to new version
+                otherSortedNotesFiles.set(i, file); //set to new version
+                break; //break with updated version
+            }
+        }
+    }
+
     public File getFile() {
         return file;
     }
+
 
     public boolean equals(NotesFile anotherNotesFile) {
         return this.getFileName().equals(anotherNotesFile.getFileName());
