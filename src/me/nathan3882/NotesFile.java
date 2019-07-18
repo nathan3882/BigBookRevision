@@ -16,7 +16,7 @@ public class NotesFile implements Comparable<NotesFile> {
     private int upperBound = -1;
     private boolean sortedByLower;
 
-    public NotesFile(File file, boolean trackOtherNotesFiles) {
+    public NotesFile(BusinessRevision revision, File file, boolean trackOtherNotesFiles) {
 
         this.file = file;
         this.fileName = file.getName();
@@ -24,16 +24,16 @@ public class NotesFile implements Comparable<NotesFile> {
         this.upperBound = getFileUpperBound();
         if (trackOtherNotesFiles) {
             for (File otherFile : new File(".").listFiles()) {
-                if (BusinessRevision.get().isValidPagesFile(otherFile)) {
-                    otherSortedNotesFiles.add(new NotesFile(otherFile, false));
+                if (revision.isValidPagesFile(otherFile)) {
+                    otherSortedNotesFiles.add(new NotesFile(revision, otherFile, false));
                 }
             }
         }
         sort(true);
     }
 
-    public static NotesFile from(File file, boolean trackOtherNotesFiles) {
-        return new NotesFile(file, trackOtherNotesFiles);
+    public static NotesFile from(BusinessRevision revision, File file, boolean trackOtherNotesFiles) {
+        return new NotesFile(revision, file, trackOtherNotesFiles);
     }
 
     private static int getPBound(String fileName, boolean upperBound) {
@@ -164,7 +164,6 @@ public class NotesFile implements Comparable<NotesFile> {
 
         updateSorted(renamed, newUpperBound, true);
         this.file.renameTo(renamed);
-
         changeFileInfo(this, renamed, renamed.getName(), newUpperBound, true);
 
         if (checkOtherFiles) {

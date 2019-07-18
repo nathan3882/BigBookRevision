@@ -66,11 +66,12 @@ public class Creation {
 //            filesToCreate + "with" + leftOver + "left over"
             for (int done = 0; done < filesToCreate; done++) {
                 int lowerBound = done * chunk;
-                upperBound = lowerBound + chunk;
+                upperBound = lowerBound + chunk - 1; //so theres no overlaps ie upper bound for one is same as lower bound for another
                 createNotesFile(lowerBound, upperBound);
                 setDoneFileCount(done);
             }
-            createNotesFile(upperBound, upperBound + leftOver);
+            int lastUpper = upperBound + 1;
+            createNotesFile(lastUpper, lastUpper + leftOver);
             setDoneFileCount(getDoneFileCount() + 2); //+ 1 negates that iteration started at 0, + another 1 accounts for the creation above
         } else {
             completionTime.setWasActuallyCompleted(false);
