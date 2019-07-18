@@ -1,7 +1,5 @@
 package me.nathan3882;
 
-import me.nathan3882.forms.CoreForm;
-
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
@@ -13,9 +11,9 @@ import java.util.regex.Pattern;
 
 public class BusinessRevision {
 
+    private static BusinessRevision businessRevision = new BusinessRevision();
     private Stage stage = getFirstStage();
     private boolean done = false;
-    private static BusinessRevision businessRevision = new BusinessRevision();
     private Pattern changeBoundPattern = Pattern.compile("change (p|P)\\d+\\s(to)\\s(p|P)\\d");
     private String fileLoc;
     private String extension;
@@ -24,68 +22,64 @@ public class BusinessRevision {
 
     private JPanel cards;
     private SPanel activePanel;
-    private CoreForm coreForm;
 
     public static void main(String[] args) {
         doLookAndFeel();
-        BusinessRevision inst = BusinessRevision.get();
-        for (File file : new File(".").listFiles()) {
-            if (get().isValidPagesFile(file)) {
-                get().getAllFiles().add(new NotesFile(inst, file, true)); //true for second arg will allow page modifications
+
+        BusinessRevision bRevision = BusinessRevision.get();
+
+        File sameDirectory = new File(".");
+        File[] files = sameDirectory.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (bRevision.isValidPagesFile(file)) {
+                    bRevision.getAllFiles().add(new NotesFile(bRevision, file, true)); //true for second arg will allow page modifications
+                }
             }
         }
 
-
-
-        CoreForm coreForm = new CoreForm(inst);
-        inst.coreForm = coreForm;
-        inst.addPanelToCard(coreForm);
-
-        inst.openPanel(coreForm);
-
-        inst.initFrame();
-        while (!inst.done) {
-            System.out.println("Please enter info regarding stage : " + inst.getStage() + " or alternatively type 'change px to px' to safely change an upper/lower bound!");
-            if (inst.getStage() == Stage.FILE) {
+        while (!bRevision.done) {
+            System.out.println("Please enter info regarding stage : " + bRevision.getStage() + " or alternatively type 'change px to px' to safely change an upper/lower bound!");
+            if (bRevision.getStage() == Stage.FILE) {
                 System.out.println("Enter {abs} for directory jar is in");
             }
             Scanner scanner = new Scanner(System.in);
             if (scanner.hasNext()) {
                 String entered = scanner.nextLine();
-                if (inst.isChangeFormat(entered)) {
+                if (bRevision.isChangeFormat(entered)) {
                     int fromThis = NotesFile.getBounds(entered, false);
                     int toThis = NotesFile.getBounds(entered, true);
-                    inst.performChange(fromThis, toThis);
+                    bRevision.performChange(fromThis, toThis);
                     continue;
                 }
-                Stage stage = inst.getStage();
+                Stage stage = bRevision.getStage();
                 if (stage == Stage.FILE) {
-                    inst.setFileLoc(entered.trim());
-                    inst.setStage(Stage.FILE_EXTENSION);
+                    bRevision.setFileLoc(entered.trim());
+                    bRevision.setStage(Stage.FILE_EXTENSION);
                 } else if (stage == Stage.FILE_EXTENSION) {
-                    inst.setExtension("." + entered);
-                    inst.setStage(Stage.CHUNK);
+                    bRevision.setExtension("." + entered);
+                    bRevision.setStage(Stage.CHUNK);
 
                 } else if (stage == Stage.CHUNK) {
                     try {
-                        inst.setChunk(Integer.parseInt(entered));
+                        bRevision.setChunk(Integer.parseInt(entered));
                     } catch (NumberFormatException exception) {
                         System.out.println("That's not a valid number");
                         continue;
                     }
-                    inst.setStage(Stage.NUMBER);
+                    bRevision.setStage(Stage.NUMBER);
                 } else if (stage == Stage.NUMBER) {
                     int pageCount;
                     try {
                         pageCount = Integer.parseInt(entered);
-                        inst.done = true;
+                        bRevision.done = true;
                     } catch (NumberFormatException exception) {
                         exception.printStackTrace();
                         System.err.println("That is not a valid page count");
                         continue;
                     }
 
-                    Creation creation = new Creation(inst.getFileLoc(), pageCount, inst.getExtension(), inst.getChunk());
+                    Creation creation = new Creation(bRevision.getFileLoc(), pageCount, bRevision.getExtension(), bRevision.getChunk());
 
                     CompletionTime completionTime = creation.create();
                     System.out.println("Created " + creation.getDoneFileCount() + " files in... just under " + (completionTime.inSeconds() + 1) + " second/s (" + completionTime.inMillis() + " ms)!");
@@ -102,18 +96,40 @@ public class BusinessRevision {
         }
     }
 
-    private void initFrame() {
-            JFrame frame = new JFrame("Revision File Manager");
-            frame.setContentPane(get().getCards());
+    public static BusinessRevision get() {
+        return businessRevision;
+    }
 
-            DisplayMode mode = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDisplayMode();
-            int frameHeight = 500;
-            int frameWidth = 750;
-            frame.setLocation(new Point(mode.getWidth() / 2 - (frameWidth / 2), mode.getHeight() / 2 - (frameHeight / 2)));
-            frame.setPreferredSize(new Dimension(frameWidth, frameHeight));
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.pack();
-            frame.setVisible(true);
+    public boolean isValidPagesFile(File file) {
+        String name = file.getName();
+        String nameWithoutExt = name.split("\\.")[0];
+        Pattern regex = Creation.getFileNameRegex();
+        Matcher matcher = regex.matcher(nameWithoutExt);
+        return matcher.find();
+    }
+
+    public void openPanel(SPanel panel) {
+        if (getActivePanelClass() == null) {
+            setActivePanelClass(panel);
+        }
+        CardLayout cardLayout = (CardLayout) (cards.getLayout());
+        cardLayout.show(cards, panel.getPanelReferenceName());
+        this.activePanel = panel;
+        cards.revalidate();
+    }
+
+    private void initFrame() {
+        JFrame frame = new JFrame("Revision File Manager");
+        frame.setContentPane(get().getCards());
+
+        DisplayMode mode = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDisplayMode();
+        int frameHeight = 500;
+        int frameWidth = 750;
+        frame.setLocation(new Point(mode.getWidth() / 2 - (frameWidth / 2), mode.getHeight() / 2 - (frameHeight / 2)));
+        frame.setPreferredSize(new Dimension(frameWidth, frameHeight));
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.pack();
+        frame.setVisible(true);
     }
 
     private void performChange(int fromThis, int toThis) {
@@ -145,8 +161,11 @@ public class BusinessRevision {
         return changeBoundPattern.matcher(entered).find();
     }
 
-    public static BusinessRevision get() {
-        return businessRevision;
+    private void addPanelToCard(SPanel panel) {
+        if (get().getCards() == null) {
+            get().setCards(new JPanel(new CardLayout()));
+        }
+        get().getCards().add(panel.getPanel(), panel.getPanelReferenceName());
     }
 
     private Stage getFirstStage() {
@@ -155,14 +174,6 @@ public class BusinessRevision {
 
     private List<NotesFile> getAllFiles() {
         return allFiles;
-    }
-
-    public boolean isValidPagesFile(File file) {
-        String name = file.getName();
-        String nameWithoutExt = name.split("\\.")[0];
-        Pattern regex = Creation.getFileNameRegex();
-        Matcher matcher = regex.matcher(nameWithoutExt);
-        return matcher.find();
     }
 
     public String getExtension() {
@@ -197,36 +208,19 @@ public class BusinessRevision {
         this.stage = stage;
     }
 
-    public void openPanel(SPanel panel) {
-        if (getActivePanelClass() == null) {
-            setActivePanelClass(panel);
-        }
-        CardLayout cardLayout = (CardLayout) (cards.getLayout());
-        cardLayout.show(cards, panel.getPanelReferenceName());
-        this.activePanel = panel;
-        cards.revalidate();
+    public JPanel getCards() {
+        return cards;
     }
 
     public void setCards(JPanel cards) {
         this.cards = cards;
     }
 
-    public JPanel getCards() {
-        return cards;
-    }
-
-    private void addPanelToCard(SPanel panel) {
-        if (get().getCards() == null) {
-            get().setCards(new JPanel(new CardLayout()));
-        }
-        get().cards.add(panel.getPanel(), panel.getPanelReferenceName());
+    public SPanel getActivePanelClass() {
+        return this.activePanel;
     }
 
     public void setActivePanelClass(SPanel sPanel) {
         this.activePanel = sPanel;
-    }
-
-    public SPanel getActivePanelClass() {
-        return this.activePanel;
     }
 }
